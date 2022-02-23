@@ -12,7 +12,6 @@ import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.database.statement.UserStatement;
 import net.coreprotect.language.Phrase;
 import net.coreprotect.language.Selector;
-import net.coreprotect.utility.Chat;
 import net.coreprotect.utility.Color;
 import net.coreprotect.utility.Util;
 
@@ -73,7 +72,7 @@ public class InteractionLookup {
                 int resultAction = results.getInt("action");
                 int resultType = results.getInt("type");
                 int resultData = results.getInt("data");
-                int resultTime = results.getInt("time");
+                long resultTime = results.getLong("time");
                 int resultRolledBack = results.getInt("rolled_back");
 
                 if (ConfigHandler.playerIdCacheReversed.get(resultUserId) == null) {
@@ -89,7 +88,7 @@ public class InteractionLookup {
                 found = true;
 
                 String rbFormat = "";
-                if (resultRolledBack == 1) {
+                if (resultRolledBack == 1 || resultRolledBack == 3) {
                     rbFormat = Color.STRIKETHROUGH;
                 }
 
@@ -116,7 +115,7 @@ public class InteractionLookup {
             if (found) {
                 if (count > limit) {
                     String pageInfo = Color.WHITE + "-----\n";
-                    pageInfo = pageInfo + Util.getPageNavigation(command, page, totalPages) + "| " + Phrase.build(Phrase.LOOKUP_VIEW_PAGE, Color.WHITE, "/co l <page>") + "\n";
+                    pageInfo = pageInfo + Util.getPageNavigation(command, page, totalPages) + "\n";
                     result = result + pageInfo;
                 }
             }

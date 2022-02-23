@@ -44,7 +44,7 @@ public class SignMessageLookup {
             int x = l.getBlockX();
             int y = l.getBlockY();
             int z = l.getBlockZ();
-            int time = (int) (System.currentTimeMillis() / 1000L);
+            long time = (System.currentTimeMillis() / 1000L);
             int worldId = Util.getWorldId(l.getWorld().getName());
             int count = 0;
             int rowMax = page * limit;
@@ -64,7 +64,7 @@ public class SignMessageLookup {
             results = statement.executeQuery(query);
 
             while (results.next()) {
-                int resultTime = results.getInt("time");
+                long resultTime = results.getLong("time");
                 int resultUserId = results.getInt("user");
                 String line1 = results.getString("line_1");
                 String line2 = results.getString("line_2");
@@ -115,7 +115,7 @@ public class SignMessageLookup {
             if (found) {
                 if (count > limit) {
                     result.add(Color.WHITE + "-----");
-                    result.add(Util.getPageNavigation(command, page, totalPages) + "| " + Phrase.build(Phrase.LOOKUP_VIEW_PAGE, Color.WHITE, "/co l <page>"));
+                    result.add(Util.getPageNavigation(command, page, totalPages));
                 }
             }
             else {

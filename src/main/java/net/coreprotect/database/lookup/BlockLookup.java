@@ -12,7 +12,6 @@ import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.database.statement.UserStatement;
 import net.coreprotect.language.Phrase;
 import net.coreprotect.language.Selector;
-import net.coreprotect.utility.Chat;
 import net.coreprotect.utility.Color;
 import net.coreprotect.utility.Util;
 
@@ -45,9 +44,9 @@ public class BlockLookup {
             int x = block.getX();
             int y = block.getY();
             int z = block.getZ();
-            int time = (int) (System.currentTimeMillis() / 1000L);
+            long time = (System.currentTimeMillis() / 1000L);
             int worldId = Util.getWorldId(block.getWorld().getName());
-            int checkTime = 0;
+            long checkTime = 0;
             int count = 0;
             int rowMax = page * limit;
             int page_start = rowMax - limit;
@@ -75,7 +74,7 @@ public class BlockLookup {
                 int resultAction = results.getInt("action");
                 int resultType = results.getInt("type");
                 int resultData = results.getInt("data");
-                int resultTime = results.getInt("time");
+                long resultTime = results.getLong("time");
                 int resultRolledBack = results.getInt("rolled_back");
 
                 if (ConfigHandler.playerIdCacheReversed.get(resultUserId) == null) {
@@ -92,17 +91,20 @@ public class BlockLookup {
 
                 Phrase phrase = Phrase.LOOKUP_BLOCK;
                 String selector = Selector.FIRST;
+                String tag = Color.WHITE + "-";
                 if (resultAction == 2 || resultAction == 3) {
                     phrase = Phrase.LOOKUP_INTERACTION; // {clicked|killed}
                     selector = (resultAction != 3 ? Selector.FIRST : Selector.SECOND);
+                    tag = (resultAction != 3 ? Color.WHITE + "-" : Color.RED + "-");
                 }
                 else {
                     phrase = Phrase.LOOKUP_BLOCK; // {placed|broke}
                     selector = (resultAction != 0 ? Selector.FIRST : Selector.SECOND);
+                    tag = (resultAction != 0 ? Color.GREEN + "+" : Color.RED + "-");
                 }
 
                 String rbFormat = "";
-                if (resultRolledBack == 1) {
+                if (resultRolledBack == 1 || resultRolledBack == 3) {
                     rbFormat = Color.STRIKETHROUGH;
                 }
 
@@ -127,7 +129,7 @@ public class BlockLookup {
                     target = target.split(":")[1];
                 }
 
-                resultTextBuilder.append(timeAgo + " " + Color.WHITE + "- ").append(Phrase.build(phrase, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, Color.DARK_AQUA + rbFormat + target + Color.WHITE, selector)).append("\n");
+                resultTextBuilder.append(timeAgo + " " + tag + " ").append(Phrase.build(phrase, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, Color.DARK_AQUA + rbFormat + target + Color.WHITE, selector)).append("\n");
             }
 
             resultText = resultTextBuilder.toString();
@@ -136,7 +138,7 @@ public class BlockLookup {
             if (found) {
                 if (count > limit) {
                     String pageInfo = Color.WHITE + "-----\n";
-                    pageInfo = pageInfo + Util.getPageNavigation(command, page, totalPages) + "| " + Phrase.build(Phrase.LOOKUP_VIEW_PAGE, Color.WHITE, "/co l <page>") + "\n";
+                    pageInfo = pageInfo + Util.getPageNavigation(command, page, totalPages) + "\n";
                     resultText = resultText + pageInfo;
                 }
             }

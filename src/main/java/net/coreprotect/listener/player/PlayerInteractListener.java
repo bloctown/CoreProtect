@@ -69,6 +69,12 @@ public final class PlayerInteractListener extends Queue implements Listener {
             return;
         }
 
+        if (!player.hasPermission("coreprotect.inspect")) {
+            Chat.sendMessage(player, Color.DARK_AQUA + "CoreProtect " + Color.WHITE + "- " + Phrase.build(Phrase.NO_PERMISSION));
+            ConfigHandler.inspecting.put(player.getName(), false);
+            return;
+        }
+
         if (event.getAction().equals(Action.LEFT_CLICK_BLOCK)) {
             BlockState checkBlock = event.getClickedBlock().getState();
             int x = checkBlock.getX();
@@ -278,8 +284,8 @@ public final class PlayerInteractListener extends Queue implements Listener {
                                 if (ConfigHandler.lookupThrottle.get(player.getName()) != null) {
                                     Object[] lookupThrottle = ConfigHandler.lookupThrottle.get(player.getName());
                                     if ((boolean) lookupThrottle[0] || (System.currentTimeMillis() - (long) lookupThrottle[1]) < 100) {
-                                       Chat.sendMessage(player, Color.DARK_AQUA + "CoreProtect " + Color.WHITE + "- " + Phrase.build(Phrase.DATABASE_BUSY));
-                                       return;
+                                        Chat.sendMessage(player, Color.DARK_AQUA + "CoreProtect " + Color.WHITE + "- " + Phrase.build(Phrase.DATABASE_BUSY));
+                                        return;
                                     }
                                 }
 
@@ -384,7 +390,7 @@ public final class PlayerInteractListener extends Queue implements Listener {
                         Thread thread = new Thread(runnable);
                         thread.start();
 
-                        if (!BlockGroup.SAFE_INTERACT_BLOCKS.contains(type)) {
+                        if (!BlockGroup.SAFE_INTERACT_BLOCKS.contains(type) || player.isSneaking()) {
                             event.setCancelled(true);
                         }
                     }
@@ -522,12 +528,12 @@ public final class PlayerInteractListener extends Queue implements Listener {
                 }
             }
         }
-        else if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK)) {
+        else if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK) || event.getAction().equals(Action.RIGHT_CLICK_AIR)) {
             Player player = event.getPlayer();
             Block block = event.getClickedBlock();
             World world = player.getWorld();
 
-            if (block != null) {
+            if (event.getAction().equals(Action.RIGHT_CLICK_BLOCK) && block != null) {
                 final Material type = block.getType();
                 if (event.useInteractedBlock() != Event.Result.DENY) {
                     boolean isCake = false;
@@ -581,7 +587,7 @@ public final class PlayerInteractListener extends Queue implements Listener {
                                 }
                             }
 
-                            Queue.queuePlayerInteraction(player.getName(), interactBlock.getState());
+                            Queue.queuePlayerInteraction(player.getName(), interactBlock.getState(), type);
                         }
                     }
                     else if (BlockGroup.LIGHTABLES.contains(type)) { // extinguishing a lit block such as a campfire
@@ -641,74 +647,85 @@ public final class PlayerInteractListener extends Queue implements Listener {
                             CacheHandler.interactCache.put(coordinates, new Object[] { time, Material.CAKE, block.getState() });
                         }
                     }
+                }
+            }
 
-                    if (event.useItemInHand() != Event.Result.DENY && Config.getConfig(world).BLOCK_PLACE) {
-                        List<Material> entityBlockTypes = Arrays.asList(Material.ARMOR_STAND, Material.END_CRYSTAL);
-                        Material handType = null;
-                        ItemStack mainHand = player.getInventory().getItemInMainHand();
-                        ItemStack offHand = player.getInventory().getItemInOffHand();
+            if (event.useItemInHand() != Event.Result.DENY) {
+                List<Material> entityBlockTypes = Arrays.asList(Material.ARMOR_STAND, Material.END_CRYSTAL, Material.TRIDENT, Material.EXPERIENCE_BOTTLE, Material.SPLASH_POTION, Material.ENDER_PEARL, Material.FIREWORK_ROCKET);
+                ItemStack handItem = null;
+                ItemStack mainHand = player.getInventory().getItemInMainHand();
+                ItemStack offHand = player.getInventory().getItemInOffHand();
 
-                        if (event.getHand().equals(EquipmentSlot.HAND) && mainHand != null && entityBlockTypes.contains(mainHand.getType())) {
-                            handType = mainHand.getType();
+                if (event.getHand().equals(EquipmentSlot.HAND) && mainHand != null && entityBlockTypes.contains(mainHand.getType())) {
+                    handItem = mainHand;
+                }
+                else if (event.getHand().equals(EquipmentSlot.OFF_HAND) && offHand != null && entityBlockTypes.contains(offHand.getType())) {
+                    handItem = offHand;
+                }
+                else {
+                    return;
+                }
+
+                if (handItem.getType().equals(Material.END_CRYSTAL)) {
+                    if (block != null && Config.getConfig(world).BLOCK_PLACE && (block.getType().equals(Material.OBSIDIAN) || block.getType().equals(Material.BEDROCK))) {
+                        Location crystalLocation = block.getLocation().clone();
+                        crystalLocation.setY(crystalLocation.getY() + 1);
+                        boolean exists = false;
+
+                        for (Entity entity : crystalLocation.getChunk().getEntities()) {
+                            if (entity instanceof EnderCrystal && entity.getLocation().getBlockX() == crystalLocation.getBlockX() && entity.getLocation().getBlockY() == crystalLocation.getBlockY() && entity.getLocation().getBlockZ() == crystalLocation.getBlockZ()) {
+                                exists = true;
+                                break;
+                            }
                         }
-                        else if (event.getHand().equals(EquipmentSlot.OFF_HAND) && offHand != null && entityBlockTypes.contains(offHand.getType())) {
-                            handType = offHand.getType();
+
+                        if (!exists) {
+                            final Player playerFinal = player;
+                            final Location locationFinal = crystalLocation;
+                            Bukkit.getServer().getScheduler().runTask(CoreProtect.getInstance(), () -> {
+                                try {
+                                    boolean blockExists = false;
+                                    int showingBottom = 0;
+
+                                    for (Entity entity : locationFinal.getChunk().getEntities()) {
+                                        if (entity instanceof EnderCrystal && entity.getLocation().getBlockX() == locationFinal.getBlockX() && entity.getLocation().getBlockY() == locationFinal.getBlockY() && entity.getLocation().getBlockZ() == locationFinal.getBlockZ()) {
+                                            EnderCrystal enderCrystal = (EnderCrystal) entity;
+                                            showingBottom = enderCrystal.isShowingBottom() ? 1 : 0;
+                                            blockExists = true;
+                                            break;
+                                        }
+                                    }
+                                    if (blockExists) {
+                                        Queue.queueBlockPlace(playerFinal.getName(), locationFinal.getBlock().getState(), locationFinal.getBlock().getType(), locationFinal.getBlock().getState(), Material.END_CRYSTAL, showingBottom, 1, null);
+                                    }
+                                }
+                                catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            });
                         }
-                        else {
+                    }
+                }
+                else {
+                    Location relativeBlockLocation = player.getLocation().clone();
+                    relativeBlockLocation.setY(relativeBlockLocation.getY() + 1);
+                    Location blockLocation = relativeBlockLocation.clone();
+                    blockLocation.setY(blockLocation.getY() + 1);
+
+                    if (handItem.getType() == Material.ARMOR_STAND || handItem.getType() == Material.FIREWORK_ROCKET) {
+                        if (block == null) {
                             return;
                         }
 
-                        if (handType.equals(Material.END_CRYSTAL)) {
-                            Location crystalLocation = block.getLocation();
-                            if (crystalLocation.getBlock().getType().equals(Material.OBSIDIAN) || crystalLocation.getBlock().getType().equals(Material.BEDROCK)) {
-                                crystalLocation.setY(crystalLocation.getY() + 1);
-                                boolean exists = false;
-
-                                for (Entity entity : crystalLocation.getChunk().getEntities()) {
-                                    if (entity instanceof EnderCrystal && entity.getLocation().getBlockX() == crystalLocation.getBlockX() && entity.getLocation().getBlockY() == crystalLocation.getBlockY() && entity.getLocation().getBlockZ() == crystalLocation.getBlockZ()) {
-                                        exists = true;
-                                        break;
-                                    }
-                                }
-
-                                if (!exists) {
-                                    final Player playerFinal = player;
-                                    final Location locationFinal = crystalLocation;
-                                    Bukkit.getServer().getScheduler().runTask(CoreProtect.getInstance(), () -> {
-                                        try {
-                                            boolean blockExists = false;
-                                            int showingBottom = 0;
-
-                                            for (Entity entity : locationFinal.getChunk().getEntities()) {
-                                                if (entity instanceof EnderCrystal && entity.getLocation().getBlockX() == locationFinal.getBlockX() && entity.getLocation().getBlockY() == locationFinal.getBlockY() && entity.getLocation().getBlockZ() == locationFinal.getBlockZ()) {
-                                                    EnderCrystal enderCrystal = (EnderCrystal) entity;
-                                                    showingBottom = enderCrystal.isShowingBottom() ? 1 : 0;
-                                                    blockExists = true;
-                                                    break;
-                                                }
-                                            }
-                                            if (blockExists) {
-                                                Queue.queueBlockPlace(playerFinal.getName(), locationFinal.getBlock().getState(), locationFinal.getBlock().getType(), locationFinal.getBlock().getState(), Material.END_CRYSTAL, showingBottom, 1, null);
-                                            }
-                                        }
-                                        catch (Exception e) {
-                                            e.printStackTrace();
-                                        }
-                                    });
-                                }
-                            }
-                        }
-                        else {
-                            Block relativeBlock = block.getRelative(event.getBlockFace());
-                            Location relativeBlockLocation = relativeBlock.getLocation();
-                            Location blockLocation = block.getLocation();
-                            String relativeBlockKey = world.getName() + "-" + relativeBlockLocation.getBlockX() + "-" + relativeBlockLocation.getBlockY() + "-" + relativeBlockLocation.getBlockZ();
-                            String blockKey = world.getName() + "-" + blockLocation.getBlockX() + "-" + blockLocation.getBlockY() + "-" + blockLocation.getBlockZ();
-                            Object[] keys = new Object[] { relativeBlockKey, blockKey, handType };
-
-                            ConfigHandler.entityBlockMapper.put(player.getUniqueId(), keys);
-                        }
+                        Block relativeBlock = block.getRelative(event.getBlockFace());
+                        relativeBlockLocation = relativeBlock.getLocation();
+                        blockLocation = block.getLocation();
                     }
+
+                    String relativeBlockKey = world.getName() + "-" + relativeBlockLocation.getBlockX() + "-" + relativeBlockLocation.getBlockY() + "-" + relativeBlockLocation.getBlockZ();
+                    String blockKey = world.getName() + "-" + blockLocation.getBlockX() + "-" + blockLocation.getBlockY() + "-" + blockLocation.getBlockZ();
+                    Object[] keys = new Object[] { relativeBlockKey, blockKey, handItem };
+                    ConfigHandler.entityBlockMapper.put(player.getUniqueId(), keys);
                 }
             }
         }

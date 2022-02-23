@@ -10,6 +10,7 @@ import org.bukkit.block.Sign;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -27,6 +28,7 @@ public class BukkitAdapter implements BukkitInterface {
     public static final int BUKKIT_V1_15 = 15;
     public static final int BUKKIT_V1_16 = 16;
     public static final int BUKKIT_V1_17 = 17;
+    public static final int BUKKIT_V1_18 = 18;
 
     public static void loadAdapter() {
         switch (ConfigHandler.SERVER_VERSION) {
@@ -41,6 +43,7 @@ public class BukkitAdapter implements BukkitInterface {
                 BukkitAdapter.ADAPTER = new Bukkit_v1_16();
                 break;
             case BUKKIT_V1_17:
+            case BUKKIT_V1_18:
             default:
                 BukkitAdapter.ADAPTER = new Bukkit_v1_17();
                 break;
@@ -114,6 +117,11 @@ public class BukkitAdapter implements BukkitInterface {
     @Override
     public Material getFrameType(Entity entity) {
         return Material.ITEM_FRAME;
+    }
+
+    @Override
+    public Material getFrameType(EntityType type) {
+        return type == EntityType.ITEM_FRAME ? Material.ITEM_FRAME : null;
     }
 
     @Override

@@ -41,6 +41,7 @@ import net.coreprotect.listener.player.PlayerInteractListener;
 import net.coreprotect.listener.player.PlayerJoinListener;
 import net.coreprotect.listener.player.PlayerQuitListener;
 import net.coreprotect.listener.player.PlayerTakeLecternBookListener;
+import net.coreprotect.listener.player.ProjectileLaunchListener;
 import net.coreprotect.listener.player.SignChangeListener;
 import net.coreprotect.listener.world.LeavesDecayListener;
 import net.coreprotect.listener.world.PortalCreateListener;
@@ -89,6 +90,7 @@ public final class ListenerHandler {
         pluginManager.registerEvents(new PlayerCommandListener(), plugin);
         pluginManager.registerEvents(new PlayerDeathListener(), plugin);
         pluginManager.registerEvents(new PlayerDropItemListener(), plugin);
+        pluginManager.registerEvents(new PlayerPickupArrowListener(), plugin);
         pluginManager.registerEvents(new FoodLevelChangeListener(), plugin);
         pluginManager.registerEvents(new PlayerInteractEntityListener(), plugin);
         pluginManager.registerEvents(new PlayerJoinListener(), plugin);
@@ -96,6 +98,7 @@ public final class ListenerHandler {
         pluginManager.registerEvents(new SignChangeListener(), plugin);
         pluginManager.registerEvents(new PlayerInteractListener(), plugin);
         pluginManager.registerEvents(new PlayerTakeLecternBookListener(), plugin);
+        pluginManager.registerEvents(new ProjectileLaunchListener(), plugin);
 
         // World Listeners
         pluginManager.registerEvents(new StructureGrowListener(), plugin);
@@ -104,7 +107,7 @@ public final class ListenerHandler {
 
         // Paper Listeners / Fallbacks
         try {
-            Class.forName("io.papermc.paper.event.player.AsyncChatEvent");
+            Class.forName("net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer");
             pluginManager.registerEvents(new PaperChatListener(), plugin);
         }
         catch (Exception e) {

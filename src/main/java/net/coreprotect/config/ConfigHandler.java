@@ -14,8 +14,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -23,8 +21,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
 import net.coreprotect.bukkit.BukkitAdapter;
-import net.coreprotect.consumer.Consumer;
 import net.coreprotect.consumer.Queue;
 import net.coreprotect.database.Database;
 import net.coreprotect.database.statement.UserStatement;
@@ -58,6 +58,7 @@ public class ConfigHandler extends Queue {
     public static volatile boolean serverRunning = false;
     public static volatile boolean converterRunning = false;
     public static volatile boolean purgeRunning = false;
+    public static volatile boolean pauseConsumer = false;
     public static volatile boolean worldeditEnabled = false;
     public static volatile boolean databaseReachable = true;
     public static volatile int worldId = 0;
@@ -87,8 +88,10 @@ public class ConfigHandler extends Queue {
     public static Map<String, Integer> loggingItem = syncMap();
     public static ConcurrentHashMap<String, List<Object>> transactingChest = new ConcurrentHashMap<>();
     public static ConcurrentHashMap<String, List<ItemStack[]>> oldContainer = new ConcurrentHashMap<>();
-    public static ConcurrentHashMap<String, List<ItemStack>> itemsDrop = new ConcurrentHashMap<>();
     public static ConcurrentHashMap<String, List<ItemStack>> itemsPickup = new ConcurrentHashMap<>();
+    public static ConcurrentHashMap<String, List<ItemStack>> itemsDrop = new ConcurrentHashMap<>();
+    public static ConcurrentHashMap<String, List<ItemStack>> itemsThrown = new ConcurrentHashMap<>();
+    public static ConcurrentHashMap<String, List<ItemStack>> itemsShot = new ConcurrentHashMap<>();
     public static ConcurrentHashMap<String, Object[]> hopperAbort = new ConcurrentHashMap<>();
     public static Map<String, List<ItemStack[]>> forceContainer = syncMap();
     public static Map<String, Integer> lookupType = syncMap();
@@ -103,7 +106,7 @@ public class ConfigHandler extends Queue {
     public static Map<String, List<Integer>> lookupAlist = syncMap();
     public static Map<String, Integer[]> lookupRadius = syncMap();
     public static Map<String, String> lookupTime = syncMap();
-    public static Map<String, Integer> lookupRows = syncMap();
+    public static Map<String, Long[]> lookupRows = syncMap();
     public static Map<String, String> uuidCache = syncMap();
     public static Map<String, String> uuidCacheReversed = syncMap();
     public static Map<String, Integer> playerIdCache = syncMap();
@@ -175,10 +178,7 @@ public class ConfigHandler extends Queue {
 
     public static void loadDatabase() {
         // close old pool when we reload the database, e.g. in purge command
-        if (ConfigHandler.hikariDataSource != null) {
-            ConfigHandler.hikariDataSource.close();
-            ConfigHandler.hikariDataSource = null;
-        }
+        Database.closeConnection();
 
         if (!Config.getGlobal().MYSQL) {
             try {
@@ -203,12 +203,23 @@ public class ConfigHandler extends Queue {
                 }
 
                 tempFile.delete();
+
+                Class.forName("org.sqlite.JDBC");
             }
             catch (Exception e) {
                 e.printStackTrace();
             }
-        } else {
+        }
+        else {
             HikariConfig config = new HikariConfig();
+            try {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+                config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+            }
+            catch (Exception e) {
+                config.setDriverClassName("com.mysql.jdbc.Driver");
+            }
+
             config.setJdbcUrl("jdbc:mysql://" + ConfigHandler.host + ":" + ConfigHandler.port + "/" + ConfigHandler.database);
             config.setUsername(ConfigHandler.username);
             config.setPassword(ConfigHandler.password);
@@ -225,6 +236,7 @@ public class ConfigHandler extends Queue {
             config.addDataSourceProperty("cacheServerConfiguration", "true");
             config.addDataSourceProperty("maintainTimeStats", "false");
             /* Disable SSL to suppress the unverified server identity warning */
+            config.addDataSourceProperty("allowPublicKeyRetrieval", "true");
             config.addDataSourceProperty("useSSL", "false");
 
             ConfigHandler.hikariDataSource = new HikariDataSource(config);
@@ -395,7 +407,8 @@ public class ConfigHandler extends Queue {
             ConfigHandler.loadConfig(); // Load (or create) the configuration file.
             ConfigHandler.loadDatabase(); // Initialize MySQL and create tables if necessary.
 
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             e.printStackTrace();
         }
 

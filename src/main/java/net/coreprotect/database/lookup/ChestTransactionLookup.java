@@ -12,7 +12,6 @@ import net.coreprotect.config.ConfigHandler;
 import net.coreprotect.database.statement.UserStatement;
 import net.coreprotect.language.Phrase;
 import net.coreprotect.language.Selector;
-import net.coreprotect.utility.Chat;
 import net.coreprotect.utility.Color;
 import net.coreprotect.utility.Util;
 
@@ -48,7 +47,7 @@ public class ChestTransactionLookup {
             int x2 = (int) Math.ceil(l.getX());
             int y2 = (int) Math.ceil(l.getY());
             int z2 = (int) Math.ceil(l.getZ());
-            int time = (int) (System.currentTimeMillis() / 1000L);
+            long time = (System.currentTimeMillis() / 1000L);
             int worldId = Util.getWorldId(l.getWorld().getName());
             int count = 0;
             int rowMax = page * limit;
@@ -79,7 +78,7 @@ public class ChestTransactionLookup {
                 int resultAction = results.getInt("action");
                 int resultType = results.getInt("type");
                 int resultData = results.getInt("data");
-                int resultTime = results.getInt("time");
+                long resultTime = results.getLong("time");
                 int resultAmount = results.getInt("amount");
                 int resultRolledBack = results.getInt("rolled_back");
 
@@ -96,8 +95,9 @@ public class ChestTransactionLookup {
                 found = true;
 
                 String selector = (resultAction != 0 ? Selector.FIRST : Selector.SECOND);
+                String tag = (resultAction != 0 ? Color.GREEN + "+" : Color.RED + "-");
                 String rbFormat = "";
-                if (resultRolledBack == 1) {
+                if (resultRolledBack == 1 || resultRolledBack == 3) {
                     rbFormat = Color.STRIKETHROUGH;
                 }
 
@@ -116,7 +116,7 @@ public class ChestTransactionLookup {
                     target = target.split(":")[1];
                 }
 
-                resultBuilder.append(timeAgo + " " + Color.WHITE + "- ").append(Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, "x" + resultAmount, Color.DARK_AQUA + rbFormat + target + Color.WHITE, selector)).append("\n");
+                resultBuilder.append(timeAgo + " " + tag + " ").append(Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, "x" + resultAmount, Color.DARK_AQUA + rbFormat + target + Color.WHITE, selector)).append("\n");
             }
             result = resultBuilder.toString();
             results.close();
@@ -124,7 +124,7 @@ public class ChestTransactionLookup {
             if (found) {
                 if (count > limit) {
                     String pageInfo = Color.WHITE + "-----\n";
-                    pageInfo = pageInfo + Util.getPageNavigation(command, page, totalPages) + "| " + Phrase.build(Phrase.LOOKUP_VIEW_PAGE, Color.WHITE, "/co l <page>") + "\n";
+                    pageInfo = pageInfo + Util.getPageNavigation(command, page, totalPages) + "\n";
                     result = result + pageInfo;
                 }
             }
